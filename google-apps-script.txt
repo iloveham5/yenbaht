@@ -11,7 +11,7 @@ const SECRET = 'change-me';
 
 const SHEET_NAME = 'transactions';
 const COLS = ['date', 'wallet', 'type', 'amount', 'category', 'merchant', 'note',
-  'toWallet', 'toAmount', 'source', 'id', 'time', 'updated', 'deleted', 'server'];
+  'toWallet', 'toAmount', 'source', 'id', 'time', 'updated', 'deleted', 'server', 'raw'];
 const C = {};
 COLS.forEach(function (name, i) { C[name] = i; });
 
@@ -26,6 +26,7 @@ function doGet(e) {
 
 // POST ?k=SECRET  body {"tx":[...]}                    → save the app's records
 // POST ?k=SECRET  body {"amount","merchant","card"}     → record one payment (iPhone Shortcut)
+// POST ?k=SECRET  body {"sms","bank"}                   → record one bank text message; the app reads it
 function doPost(e) {
   const p = (e && e.parameter) || {};
   let body = {};
@@ -38,6 +39,7 @@ function doPost(e) {
 }
 
 function capture_(p) {
+  if (p.sms !== undefined) return captureSms_(p);
   const raw = String(p.amount === undefined ? '' : p.amount);
   const num = Math.abs(parseFloat(raw.replace(/,/g, '').replace(/[^0-9.\-]/g, '')) || 0);
   let wallet = String(p.wallet || '').toUpperCase();
@@ -60,6 +62,29 @@ function capture_(p) {
   };
   withLock_(function () { sheet_().appendRow(toRow_(t, now)); });
   return { ok: true, id: t.id, wallet: t.wallet, amount: t.amount, merchant: t.merchant };
+}
+
+// A bank text is stored as-is; YenBaht reads the amount from it (so the reader can improve without redeploying this script).
+function captureSms_(p) {
+  const text = String(p.sms).replace(/\r/g, '').trim().slice(0, 1000);
+  if (!text) return { ok: false, error: 'Empty message' };
+  const wallet = String(p.wallet || '').toUpperCase() === 'JPY' ? 'JPY' : 'THB';
+  const now = Date.now();
+  const t = {
+    id: Utilities.getUuid(), time: now, wallet: wallet, type: 'expense', amount: 0, category: '', merchant: '', note: '',
+    toWallet: '', toAmount: '', source: 'sms:' + (String(p.bank || '').trim() || 'Bank'), updated: now, deleted: false, raw: text
+  };
+  return withLock_(function () {
+    const sh = sheet_();
+    const last = sh.getLastRow();
+    if (last > 1) {
+      // The same text twice is a repeat, never a second payment (the balance in it would differ).
+      const seen = sh.getRange(2, C.raw + 1, last - 1, 1).getValues();
+      for (let i = 0; i < seen.length; i++) if (String(seen[i][0]) === text) return { ok: true, duplicate: true };
+    }
+    sh.appendRow(toRow_(t, now));
+    return { ok: true, id: t.id, wallet: wallet };
+  });
 }
 
 function pull_(since) {
@@ -122,6 +147,7 @@ function toRow_(t, now) {
   row[C.updated] = Number(t.updated) || now;
   row[C.deleted] = t.deleted === true;
   row[C.server] = now;
+  row[C.raw] = txt_(t.raw);
   return row;
 }
 
@@ -147,6 +173,8 @@ function sheet_() {
     sh = ss.insertSheet(SHEET_NAME);
     sh.getRange(1, 1, 1, COLS.length).setValues([COLS]).setFontWeight('bold');
     sh.setFrozenRows(1);
+  } else if (sh.getLastColumn() < COLS.length) {
+    sh.getRange(1, 1, 1, COLS.length).setValues([COLS]).setFontWeight('bold'); // a newer version added columns
   }
   return sh;
 }

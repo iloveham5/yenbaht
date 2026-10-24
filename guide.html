@@ -46,6 +46,7 @@
     <a href="#sheet">3 · Google Sheet</a>
     <a href="#shortcut">4 · Suica auto-record</a>
     <a href="#paypay">5 · PayPay</a>
+    <a href="#kbank">6 · KBank</a>
     <a href="#more">More</a>
   </nav>
 
@@ -131,9 +132,42 @@
   </section>
 
   <section>
+    <h2 id="kbank">6 · Auto-record KBank (baht) <small>Uses KBank's text-message alerts. About 5 minutes.</small></h2>
+    <p>KBank doesn't let other apps read your account, but it can text you every time money goes in or out. Your iPhone forwards each KBank text to your Google Sheet, and YenBaht reads the amount, money in or out, and the time. That covers transfers, PromptPay / QR payments, debit card and ATM.</p>
+    <h3>Before you start</h3>
+    <ul>
+      <li><b>Turn on KBank SMS alerts</b> ("SMS ขยันบอก" / SMS Transaction Alert) in K PLUS. KBank charges a yearly fee per account (฿199 when this guide was written).</li>
+      <li>The <b>Thai phone number registered with KBank must get its texts on this iPhone</b> (for example a Thai eSIM as a second line). Texts usually still arrive while roaming in Japan.</li>
+      <li>Section 3 (Google Sheet) must be done. If you set it up before this KBank feature existed, paste the latest code into Apps Script again and publish a <b>new version</b> (see the end of section 3).</li>
+    </ul>
+    <h3>Make the automation</h3>
+    <ol>
+      <li>Open one KBank alert in Messages. Find a piece of text that is in <b>every</b> KBank alert but not in other texts. Your masked account number (something like <code>X123456X</code>) is ideal.</li>
+      <li>In YenBaht: ⚙ → <b>Copy Shortcut URL</b> (the same one as for Suica).</li>
+      <li>Shortcuts → <b>Automation</b> → <b>+</b> → <b>Message</b>.</li>
+      <li><b>Message Contains:</b> type the text from step 1. Leave <b>Sender</b> empty (bank senders can't be picked). Choose <b>Run Immediately</b> → <b>Next</b>.</li>
+      <li><b>New Blank Automation</b> → add <b>Get Contents of URL</b> → paste the URL → tap <b>›</b>: <b>Method</b> POST, <b>Request Body</b> JSON.</li>
+      <li>Add two <b>Text</b> fields:
+        <table class="table">
+          <tr><th>Key</th><th>Value</th></tr>
+          <tr><td><code>sms</code></td><td><b>Shortcut Input</b> (if you can pick a part of it, choose <b>Content</b>)</td></tr>
+          <tr><td><code>bank</code></td><td>type <code>KBank</code></td></tr>
+        </table>
+      </li>
+      <li>Tap <b>Done</b>.</li>
+    </ol>
+    <h3>Check it works</h3>
+    <ul>
+      <li>Before any money moves, copy an old KBank text and paste it in YenBaht → ⚙ → <b>KBank texts</b>. It shows what the reader understands.</li>
+      <li>After the next KBank text, open YenBaht: the payment is waiting in <b>Sort</b> with the original text underneath.</li>
+    </ul>
+    <div class="tip">KBank doesn't send alerts between 22:00 and 07:00 — night payments arrive in the morning, and YenBaht uses the time written in the text. If a payment was also entered by hand, or it's the baht side of a Transfer you recorded, Sort shows <b>"Already recorded?"</b> so you can skip it with one tap. A text the reader can't fully understand still arrives: you type the amount in Sort. Report the wording of such texts (hide account numbers) so the reader can be improved — earlier texts get re-read automatically.</div>
+  </section>
+
+  <section>
     <h2 id="more">More (optional)</h2>
     <h3>Log PayPay or a Thai bank app right after you pay</h3>
-    <p>Instead of the monthly CSV, a Shortcut can pop up "How much?" every time you close the app:</p>
+    <p>Instead of the monthly CSV (or KBank texts), a Shortcut can pop up "How much?" every time you close the app:</p>
     <ol>
       <li>Shortcuts → Automation → <b>+</b> → <b>App</b> → choose <b>PayPay</b> (or K PLUS, SCB EASY…) → <b>Is Closed</b> → <b>Run Immediately</b>.</li>
       <li>Add action <b>Ask for Input</b> → Input Type: <b>Number</b>, prompt "How much?".</li>

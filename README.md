@@ -5,6 +5,7 @@ Income & expense tracker for iPhone (installable web app) with two wallets: 🇯
 - **Quick add:** open → type amount → tap a category. Wallet is picked from the phone's time zone.
 - **Auto-record:** an iPhone Shortcuts "Transaction" automation sends every Suica / Apple Pay tap to your own Google Sheet; the app pulls them in and learns each shop's category.
 - **PayPay:** import the monthly CSV from the PayPay app (duplicates skipped).
+- **KBank:** an iPhone "Message" automation forwards KBank SMS alerts to the sheet; `sms.js` reads amount, direction and time. Unread texts wait in Sort and are retried when the reader improves.
 - Transfers between wallets, balance adjustments, history, monthly stats, CSV/JSON backup, works offline.
 
 ## Files
@@ -12,6 +13,7 @@ Income & expense tracker for iPhone (installable web app) with two wallets: 🇯
 | File | What it is |
 |---|---|
 | `index.html`, `app.css`, `app.js` | The app (no build step, no dependencies) |
+| `sms.js` | Reader for Thai bank SMS alerts (KBank first) |
 | `sw.js`, `manifest.webmanifest`, `icons/` | Offline support and home-screen install |
 | `guide.html` | Setup guide shown inside the app |
 | `google-apps-script.txt` | Backend to paste into a Google Sheet's Apps Script |

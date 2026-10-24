@@ -3,7 +3,7 @@
    when connected, is mirrored to the user's own Google Sheet. */
 'use strict';
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const SYM = { JPY: '¥', THB: '฿' };
 const FLAG = { JPY: '🇯🇵', THB: '🇹🇭' };
 const OTHER = { JPY: 'THB', THB: 'JPY' };
@@ -93,7 +93,7 @@ function mkTx(o) {
   const now = Date.now();
   return Object.assign({
     id: uuid(), time: now, wallet: 'JPY', type: 'expense', amount: 0, category: '', merchant: '', note: '',
-    toWallet: '', toAmount: '', source: 'manual', updated: now, deleted: false, dirty: true,
+    toWallet: '', toAmount: '', source: 'manual', raw: '', updated: now, deleted: false, dirty: true,
   }, o);
 }
 function addTx(t) { S.tx.push(t); saveTx(); scheduleSync(); }
@@ -133,6 +133,7 @@ const reviewList = () => S.tx.filter(needsReview).sort((a, b) => a.time - b.time
 function srcLabel(t) {
   const s = t.source || '';
   if (s.startsWith('auto')) return s.slice(5).trim() || 'Apple Pay';
+  if (s.startsWith('sms')) return s.slice(4).trim() || 'SMS';
   if (s === 'paypay') return 'PayPay';
   return s === 'manual' || !s ? '' : s;
 }
@@ -184,6 +185,41 @@ function guessCategory(t, idx) {
       (TRANSIT.test(t.merchant || '') || (TRANSIT_CARD.test(t.source || '') && !str(t.merchant).trim()))) return 'Transport';
   return '';
 }
+/* ---------------- bank text messages (KBank SMS) ---------------- */
+// Texts arrive with amount 0; read them here. Ones the reader can't fully understand wait in Sort
+// and are retried whenever the reader is improved.
+function applySMS() {
+  if (typeof parseBankSMS !== 'function') return 0;
+  let n = 0;
+  for (const t of S.tx) {
+    if (t.deleted || !t.raw || !str(t.source).startsWith('sms') || t.amount > 0) continue;
+    const p = parseBankSMS(t.raw, t.time);
+    if (!(p.amount > 0) || !p.type) continue;
+    t.amount = round(p.amount, t.wallet);
+    t.type = p.type;
+    if (p.time) t.time = p.time;
+    if (p.party && !t.merchant) t.merchant = p.party;
+    t.updated = Date.now();
+    t.dirty = true;
+    n++;
+  }
+  if (n) { saveTx(); scheduleSync(); }
+  return n;
+}
+// A text or auto-recorded payment that matches something you entered by hand (or a transfer) within 3 days.
+function findTwin(t) {
+  if (!(t.amount > 0) || t.source === 'manual') return null;
+  return S.tx.find(x => x !== t && !x.deleted && x.source === 'manual' && Math.abs(x.time - t.time) < 3 * 864e5 && (
+    (x.type === t.type && x.wallet === t.wallet && x.amount === t.amount) ||
+    (t.type === 'income' && x.type === 'transfer' && x.toWallet === t.wallet && x.toAmount === t.amount) ||
+    (t.type === 'expense' && x.type === 'transfer' && x.wallet === t.wallet && x.amount === t.amount))) || null;
+}
+function twinLabel(x) {
+  const what = x.type === 'transfer' ? `Transfer ${fmt(x.amount, x.wallet)} → ${fmt(x.toAmount, x.toWallet)}`
+    : `${x.category || 'Record'} ${fmt(x.amount, x.wallet)}`;
+  return what + ', ' + fmtWhen(x.time);
+}
+
 function autoCategorize() {
   const pending = S.tx.filter(t => !t.deleted && !t.category && (t.type === 'expense' || t.type === 'income'));
   if (!pending.length) return 0;
@@ -514,26 +550,44 @@ function openReview() {
   if (!reviewList().length) return;
   openSheet('Sort payments', '<div id="rv"></div>', body => {
     const box = $('#rv', body);
+    // What you picked for the current item when its amount is missing (kept across redraws).
+    const st = { id: null, type: 'expense', amt: '' };
     const draw = () => {
       const list = reviewList();
       if (!list.length) { closeSheet(); toast('All sorted ✓'); return; }
       const t = list[0];
-      const kind = t.type === 'income' ? 'income' : 'expense';
+      const missing = !(t.amount > 0);
+      if (st.id !== t.id) {
+        const guess = t.raw && typeof parseBankSMS === 'function' ? parseBankSMS(t.raw, t.time) : {};
+        st.id = t.id;
+        st.type = guess.type || (t.type === 'income' ? 'income' : 'expense');
+        st.amt = missing && guess.amount ? String(guess.amount) : '';
+      }
+      const kind = missing ? st.type : t.type === 'income' ? 'income' : 'expense';
+      const twin = findTwin(t);
       const sortable = list.filter(x => x.amount > 0).length;
+      const missingMsg = t.raw ? 'Couldn’t read this text fully — check it, type the amount, or delete:' : 'Amount wasn’t sent — type it, or delete this one:';
       box.innerHTML = `
         <div class="rv-card">
           <div class="rv-top">${srcLabel(t) ? `<span class="badge">${esc(srcLabel(t))}</span>` : ''}<span>${esc(fmtWhen(t.time))}</span><span class="rv-left">${list.length} left</span></div>
-          <div class="rv-merchant">${esc(t.merchant || t.note || 'No shop name')}</div>
-          ${t.amount > 0
-            ? `<div class="rv-amt">${fmt(kind === 'income' ? t.amount : -t.amount, t.wallet, true)}</div>`
-            : `<label class="rv-missing">Amount wasn't sent — type it, or delete this one:<input id="rv-amt" inputmode="decimal" placeholder="${SYM[t.wallet]}0" autocomplete="off"></label>`}
+          <div class="rv-merchant">${esc(t.merchant || t.note || (t.raw ? 'Bank text' : 'No shop name'))}</div>
+          ${missing
+            ? `${t.raw ? `<div class="rv-type">${segHTML('rvtype', [['expense', 'Money out'], ['income', 'Money in']], st.type)}</div>` : ''}
+               <label class="rv-missing">${missingMsg}<input id="rv-amt" inputmode="decimal" value="${esc(st.amt)}" placeholder="${SYM[t.wallet]}0" autocomplete="off"></label>`
+            : `<div class="rv-amt">${fmt(kind === 'income' ? t.amount : -t.amount, t.wallet, true)}</div>`}
+          ${t.raw ? `<div class="rv-raw">${esc(t.raw)}</div>` : ''}
         </div>
+        ${twin ? `<div class="rv-twin"><div>Already recorded? <b>${esc(twinLabel(twin))}</b></div><button class="secondary" id="rv-twin">Same one — skip</button></div>` : ''}
         <div class="rv-cats">${cats(kind).map(catBtn).join('')}</div>
         <div class="btns"><button class="danger" id="rv-del">Delete</button>${sortable > 1 ? `<button class="secondary" id="rv-other">All ${sortable} → ${esc(otherName(kind))}</button>` : ''}</div>`;
     };
+    box.addEventListener('input', e => { if (e.target.id === 'rv-amt') st.amt = e.target.value; });
     box.addEventListener('click', e => {
       const t = reviewList()[0];
       if (!t) return;
+      const sb = e.target.closest('.seg[data-f="rvtype"] button');
+      if (sb) { st.type = sb.dataset.v; draw(); return; }
+      if (e.target.closest('#rv-twin')) { removeTx(t); draw(); return; }
       const b = e.target.closest('.cat');
       if (b) {
         const patch = { category: b.dataset.cat };
@@ -542,6 +596,7 @@ function openReview() {
           const v = parseNum(inp.value);
           if (!(v > 0)) { shake(inp); inp.focus(); return; }
           patch.amount = round(v, t.wallet);
+          if (t.raw) patch.type = st.type;
         }
         updateTx(t, patch);
         autoCategorize(); // same shop elsewhere in the list gets sorted too
@@ -570,7 +625,8 @@ function openEdit(t) {
     ${isX ? `<label class="field"><span id="ed-to-l">Arrived (${OTHER[wallet]})</span><input id="ed-to" inputmode="decimal" value="${t.toAmount || ''}" autocomplete="off"></label>` : ''}
     ${!isX && !isAdj ? '<div class="field"><span>Category</span><div class="chips" id="ed-cats"></div></div>' : ''}
     <label class="field"><span>Date &amp; time</span><input id="ed-time" type="datetime-local" value="${toLocalInput(t.time)}"></label>
-    ${t.merchant ? `<div class="field"><span>Shop</span><div class="ro">${esc(t.merchant)}</div></div>` : ''}
+    ${t.merchant ? `<div class="field"><span>${t.raw ? 'From / to' : 'Shop'}</span><div class="ro">${esc(t.merchant)}</div></div>` : ''}
+    ${t.raw ? `<div class="field"><span>Bank text</span><div class="ro rv-raw">${esc(t.raw)}</div></div>` : ''}
     <label class="field"><span>Note</span><input id="ed-note" value="${esc(t.note)}" autocomplete="off"></label>
     ${srcLabel(t) ? `<p class="hint">Recorded by: ${esc(srcLabel(t))}</p>` : ''}
     <div class="btns"><button class="danger" id="ed-del">Delete</button><button class="primary" id="ed-save">Save</button></div></div>`;
@@ -666,6 +722,13 @@ function mountSettings(body) {
       <p class="hint"><a href="guide.html#sheet">Step-by-step setup guide →</a></p>
     </div>
 
+    <div class="group-t">KBank texts (SMS)</div>
+    <div class="group">
+      <label class="field" style="margin-bottom:0"><span>Check the reader: paste a KBank text</span><textarea id="sms-try" rows="3" placeholder="Paste a KBank SMS here"></textarea></label>
+      <p class="hint" id="sms-out">YenBaht shows what it understands from it.</p>
+      <p class="hint"><a href="guide.html#kbank">Record KBank automatically →</a></p>
+    </div>
+
     <div class="group-t">PayPay</div>
     <div class="group">
       <label class="secondary file">Import PayPay history (CSV)<input type="file" id="pp-file" accept=".csv,text/csv,text/comma-separated-values,text/plain"></label>
@@ -728,6 +791,22 @@ function mountSettings(body) {
     } catch (e) { toast('Test failed: ' + e.message); }
   };
 
+  $('#sms-try', box).oninput = e => {
+    const v = e.target.value.trim();
+    const out = $('#sms-out', box);
+    out.classList.remove('err');
+    if (!v) { out.textContent = 'YenBaht shows what it understands from it.'; return; }
+    const r = parseBankSMS(v, Date.now());
+    if (r.amount > 0 && r.type) {
+      out.textContent = `✓ ${r.type === 'income' ? 'Money in' : 'Money out'} ${fmt(r.amount, 'THB')}` +
+        (r.time ? ' · ' + fmtWhen(r.time) : ' · time: when the text arrives') + (r.party ? ' · ' + r.party : '');
+    } else {
+      const miss = [!(r.amount > 0) && 'the amount', !r.type && 'whether money came in or went out'].filter(Boolean).join(' or ');
+      out.textContent = `✗ Couldn’t tell ${miss}. A text like this still arrives — you’d finish it in Sort.`;
+      out.classList.add('err');
+    }
+  };
+
   $('#pp-file', box).onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) importPayPay(f); };
 
   $('#c-save', box).onclick = () => {
@@ -764,6 +843,7 @@ function scheduleSync(ms) {
 const wire = t => ({
   id: t.id, time: t.time, wallet: t.wallet, type: t.type, amount: t.amount, category: t.category, merchant: t.merchant,
   note: t.note, toWallet: t.toWallet, toAmount: t.toAmount, source: t.source, updated: t.updated, deleted: !!t.deleted,
+  raw: t.raw || '',
 });
 function fromWire(r) {
   const types = ['expense', 'income', 'transfer', 'adjust'];
@@ -773,7 +853,7 @@ function fromWire(r) {
     category: str(r.category), merchant: str(r.merchant), note: str(r.note),
     toWallet: r.toWallet === 'THB' || r.toWallet === 'JPY' ? r.toWallet : '',
     toAmount: r.toAmount === '' || r.toAmount == null ? '' : Number(r.toAmount) || 0,
-    source: str(r.source), updated: Number(r.updated) || 0,
+    source: str(r.source), raw: str(r.raw), updated: Number(r.updated) || 0,
     deleted: r.deleted === true || String(r.deleted).toUpperCase() === 'TRUE', dirty: false,
   };
 }
@@ -831,7 +911,7 @@ async function sync(manual) {
     S.cfg.lastPull = res.now;
     S.cfg.lastSync = Date.now();
     saveCfg();
-    if (changed) { autoCategorize(); saveTx(); render(); }
+    if (changed) { applySMS(); autoCategorize(); saveTx(); render(); }
     sync$.err = '';
     return true;
   } catch (e) {
@@ -1100,6 +1180,7 @@ function init() {
   const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
   const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
   $('#install').hidden = !(isIOS && !standalone && !S.cfg.hideInstall);
+  applySMS(); // retries texts left unread by an older version of the reader
   autoCategorize();
   render();
   sync();

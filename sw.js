@@ -1,7 +1,7 @@
 // Offline support: serve the app from cache, refresh the cache in the background.
-const CACHE = 'yenbaht-v1';
+const CACHE = 'yenbaht-v2';
 const SHELL = [
-  './', './index.html', './app.css', './app.js', './manifest.webmanifest', './guide.html',
+  './', './index.html', './app.css', './app.js', './sms.js', './manifest.webmanifest', './guide.html',
   './google-apps-script.txt', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png',
 ];
 
