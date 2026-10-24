@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="YenBaht">
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e11" media="(prefers-color-scheme: dark)">
+<meta name="description" content="Quick income and expense tracker with yen and baht wallets.">
+<title>YenBaht</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div class="wallets" id="wallets"></div>
+    <button class="gear" id="btn-settings" aria-label="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h9M19 6h1M4 12h3M13 12h7M4 18h11M21 18h-1"/><circle cx="16" cy="6" r="2.4"/><circle cx="10" cy="12" r="2.4"/><circle cx="18" cy="18" r="2.4"/></svg>
+      <span class="dot" id="sync-dot"></span>
+    </button>
+  </header>
+
+  <main>
+    <section class="view" id="view-add">
+      <div class="banner install" id="install" hidden>
+        <span>📲 To install: tap <b>Share</b> <svg class="ic-share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M8 7l4-4 4 4M5 11v9h14v-9"/></svg> then <b>Add to Home Screen</b>.</span>
+        <button class="x" id="install-x" aria-label="Hide">✕</button>
+      </div>
+      <button class="banner inbox" id="inbox" hidden></button>
+
+      <div class="seg" id="type-seg">
+        <button data-type="expense" class="on">Expense</button>
+        <button data-type="income">Income</button>
+        <button data-type="transfer">Transfer</button>
+      </div>
+
+      <div class="amount" id="amount"></div>
+
+      <div class="meta">
+        <label class="chip" id="date-chip">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+          <span id="date-label">Today</span>
+          <input type="date" id="date-input" aria-label="Date">
+        </label>
+        <input id="note" class="note" placeholder="Note (optional)" enterkeyhint="done" autocomplete="off">
+      </div>
+
+      <div class="cats" id="cats"></div>
+      <div class="xfer" id="xfer" hidden></div>
+
+      <div class="keypad" id="keypad">
+        <button class="key" data-k="1">1</button><button class="key" data-k="2">2</button><button class="key" data-k="3">3</button>
+        <button class="key" data-k="4">4</button><button class="key" data-k="5">5</button><button class="key" data-k="6">6</button>
+        <button class="key" data-k="7">7</button><button class="key" data-k="8">8</button><button class="key" data-k="9">9</button>
+        <button class="key alt" data-k="00" id="k-dot">00</button><button class="key" data-k="0">0</button>
+        <button class="key alt" data-k="del" id="k-del" aria-label="Delete (hold to clear)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H9l-6 7 6 7h12z"/><path d="M17 9l-6 6M11 9l6 6"/></svg>
+        </button>
+      </div>
+    </section>
+
+    <section class="view scroll" id="view-history" hidden></section>
+    <section class="view scroll" id="view-stats" hidden></section>
+  </main>
+
+  <nav class="tabs" id="tabs">
+    <button data-view="add" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Add</button>
+    <button data-view="history"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg>History</button>
+    <button data-view="stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20V11M12 20V4M19 20v-6"/></svg>Stats</button>
+  </nav>
+</div>
+
+<div class="sheet-wrap" id="sheet"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

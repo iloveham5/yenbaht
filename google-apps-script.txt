@@ -1,0 +1,162 @@
+/**
+ * YenBaht — Google Sheet backend (auto-record + backup sync)
+ *
+ * 1. Change SECRET below to your own secret word (type the same word in the app).
+ * 2. Deploy → New deployment → Web app → Execute as: Me → Who has access: Anyone.
+ * 3. Paste the Web app URL (ends in /exec) into the app: Settings → Auto-record.
+ *
+ * Don't reorder or rename the columns in the "transactions" sheet.
+ */
+const SECRET = 'change-me';
+
+const SHEET_NAME = 'transactions';
+const COLS = ['date', 'wallet', 'type', 'amount', 'category', 'merchant', 'note',
+  'toWallet', 'toAmount', 'source', 'id', 'time', 'updated', 'deleted', 'server'];
+const C = {};
+COLS.forEach(function (name, i) { C[name] = i; });
+
+// GET  ?k=SECRET&since=<ms>         → rows changed since <ms> (the app pulls)
+// GET  ?k=SECRET&amount=..&merchant=.. → record one payment (test button)
+function doGet(e) {
+  const p = (e && e.parameter) || {};
+  if (p.k !== SECRET) return json_({ ok: false, error: 'Wrong secret' });
+  if (p.amount !== undefined) return json_(capture_(p));
+  return json_(pull_(Number(p.since) || 0));
+}
+
+// POST ?k=SECRET  body {"tx":[...]}                    → save the app's records
+// POST ?k=SECRET  body {"amount","merchant","card"}     → record one payment (iPhone Shortcut)
+function doPost(e) {
+  const p = (e && e.parameter) || {};
+  let body = {};
+  if (e && e.postData && e.postData.contents) {
+    try { body = JSON.parse(e.postData.contents); } catch (err) { body = {}; }
+  }
+  if ((p.k || body.k) !== SECRET) return json_({ ok: false, error: 'Wrong secret' });
+  if (Array.isArray(body.tx)) return json_(push_(body.tx));
+  return json_(capture_(Object.assign({}, p, body)));
+}
+
+function capture_(p) {
+  const raw = String(p.amount === undefined ? '' : p.amount);
+  const num = Math.abs(parseFloat(raw.replace(/,/g, '').replace(/[^0-9.\-]/g, '')) || 0);
+  let wallet = String(p.wallet || '').toUpperCase();
+  if (wallet !== 'JPY' && wallet !== 'THB') wallet = /฿|THB|บาท/i.test(raw) ? 'THB' : 'JPY';
+  const now = Date.now();
+  const t = {
+    id: Utilities.getUuid(),
+    time: now,
+    wallet: wallet,
+    type: p.type === 'income' ? 'income' : 'expense',
+    amount: wallet === 'JPY' ? Math.round(num) : Math.round(num * 100) / 100,
+    category: '',
+    merchant: String(p.merchant || '').trim(),
+    note: '',
+    toWallet: '',
+    toAmount: '',
+    source: 'auto' + (p.card ? ':' + String(p.card).trim() : ''),
+    updated: now,
+    deleted: false
+  };
+  withLock_(function () { sheet_().appendRow(toRow_(t, now)); });
+  return { ok: true, id: t.id, wallet: t.wallet, amount: t.amount, merchant: t.merchant };
+}
+
+function pull_(since) {
+  const now = Date.now(); // taken before reading, so nothing written later is missed
+  const sh = sheet_();
+  const last = sh.getLastRow();
+  const rows = [];
+  if (last > 1) {
+    const values = sh.getRange(2, 1, last - 1, COLS.length).getValues();
+    values.forEach(function (r) {
+      if (r[C.id] && Number(r[C.server]) >= since) rows.push(toObj_(r));
+    });
+  }
+  return { ok: true, now: now, rows: rows };
+}
+
+function push_(list) {
+  return withLock_(function () {
+    const sh = sheet_();
+    const last = sh.getLastRow();
+    const values = last > 1 ? sh.getRange(2, 1, last - 1, COLS.length).getValues() : [];
+    const where = {};
+    values.forEach(function (r, i) { if (r[C.id]) where[r[C.id]] = i; });
+    const now = Date.now();
+    const added = [];
+    const addedAt = {};
+    let updated = false;
+    list.forEach(function (t) {
+      if (!t || !t.id) return;
+      const row = toRow_(t, now);
+      if (addedAt[t.id] !== undefined) { added[addedAt[t.id]] = row; return; }
+      const i = where[t.id];
+      if (i === undefined) { addedAt[t.id] = added.length; added.push(row); return; }
+      if (Number(t.updated) < Number(values[i][C.updated])) return; // the sheet has a newer version
+      values[i] = row;
+      updated = true;
+    });
+    if (updated) sh.getRange(2, 1, values.length, COLS.length).setValues(values);
+    if (added.length) sh.getRange(sh.getLastRow() + 1, 1, added.length, COLS.length).setValues(added);
+    return { ok: true, now: now, saved: list.length };
+  });
+}
+
+function toRow_(t, now) {
+  const time = Number(t.time) || now;
+  const tz = t.wallet === 'THB' ? 'Asia/Bangkok' : 'Asia/Tokyo';
+  const row = [];
+  row[C.date] = Utilities.formatDate(new Date(time), tz, 'yyyy-MM-dd HH:mm');
+  row[C.wallet] = t.wallet === 'THB' ? 'THB' : 'JPY';
+  row[C.type] = txt_(t.type || 'expense');
+  row[C.amount] = Number(t.amount) || 0;
+  row[C.category] = txt_(t.category);
+  row[C.merchant] = txt_(t.merchant);
+  row[C.note] = txt_(t.note);
+  row[C.toWallet] = txt_(t.toWallet);
+  row[C.toAmount] = t.toAmount === '' || t.toAmount === undefined || t.toAmount === null ? '' : Number(t.toAmount) || 0;
+  row[C.source] = txt_(t.source);
+  row[C.id] = txt_(t.id);
+  row[C.time] = time;
+  row[C.updated] = Number(t.updated) || now;
+  row[C.deleted] = t.deleted === true;
+  row[C.server] = now;
+  return row;
+}
+
+function toObj_(r) {
+  const o = {};
+  COLS.forEach(function (name, i) { o[name] = r[i]; });
+  o.deleted = r[C.deleted] === true || String(r[C.deleted]).toUpperCase() === 'TRUE';
+  delete o.date;
+  delete o.server;
+  return o;
+}
+
+// Keep text as text: stops Sheets turning "1/2" into a date or "=..." into a formula.
+function txt_(s) {
+  s = s === undefined || s === null ? '' : String(s);
+  return s && /^[=+\-@]|^[\d\s\/.:,\-]+$/.test(s) ? "'" + s : s;
+}
+
+function sheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(SHEET_NAME);
+  if (!sh) {
+    sh = ss.insertSheet(SHEET_NAME);
+    sh.getRange(1, 1, 1, COLS.length).setValues([COLS]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function withLock_(fn) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try { return fn(); } finally { lock.releaseLock(); }
+}
+
+function json_(o) {
+  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+}

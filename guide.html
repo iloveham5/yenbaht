@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>YenBaht setup</title>
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<style>
+  :root { --bg:#f2f2f7; --card:#fff; --ink:#14161b; --ink2:#565d6b; --muted:#8a909b; --line:rgba(20,22,27,.09); --accent:#c8323c; --code:#eef0f4; --tip:#fff3d6; --tip-ink:#7a4a00; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0d0e11; --card:#1b1d22; --ink:#f1f2f4; --ink2:#a9afba; --muted:#787e89; --line:rgba(255,255,255,.09); --accent:#ff5c66; --code:#262931; --tip:#3a2c0f; --tip-ink:#ffd27a; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Thonburi", "Segoe UI", system-ui, sans-serif; -webkit-text-size-adjust: 100%; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px calc(env(safe-area-inset-bottom, 0px) + 40px); }
+  .back { display: inline-block; font-weight: 700; color: var(--accent); text-decoration: none; padding: 6px 0; }
+  h1 { font-size: 26px; margin: 10px 0 4px; }
+  .lead { color: var(--ink2); margin: 0 0 8px; }
+  nav.toc { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 4px; }
+  nav.toc a { background: var(--card); border-radius: 999px; padding: 6px 12px; font-size: 14px; font-weight: 600; color: var(--ink); text-decoration: none; border: 1px solid var(--line); }
+  section { background: var(--card); border-radius: 16px; padding: 16px 18px; margin-top: 16px; border: 1px solid var(--line); }
+  h2 { font-size: 20px; margin: 0 0 4px; scroll-margin-top: 16px; }
+  h2 small { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-top: 2px; }
+  h3 { font-size: 16px; margin: 18px 0 4px; }
+  ol, ul { padding-left: 22px; margin: 8px 0; }
+  li { margin: 6px 0; }
+  b { font-weight: 700; }
+  code, kbd { font: 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--code); border-radius: 5px; padding: 1px 5px; }
+  .tip { background: var(--tip); color: var(--tip-ink); border-radius: 12px; padding: 10px 12px; font-size: 14px; margin: 12px 0 4px; }
+  .table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 8px 0; }
+  .table td, .table th { border-bottom: 1px solid var(--line); padding: 7px 6px; text-align: left; vertical-align: top; }
+  .table th { color: var(--muted); font-size: 12px; }
+  pre { background: var(--code); border-radius: 12px; padding: 12px; overflow: auto; max-height: 340px; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; margin: 8px 0 0; }
+  .copy { border: 0; background: var(--accent); color: #fff; font-weight: 700; border-radius: 10px; padding: 9px 14px; font-size: 14px; cursor: pointer; }
+  .row { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+  .muted { color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./">‹ Back to the app</a>
+  <h1>YenBaht setup</h1>
+  <p class="lead">Two wallets (¥ and ฿), quick manual entry, and automatic recording of Suica / Apple Pay payments.</p>
+  <nav class="toc">
+    <a href="#install">1 · Install</a>
+    <a href="#use">2 · Daily use</a>
+    <a href="#sheet">3 · Google Sheet</a>
+    <a href="#shortcut">4 · Suica auto-record</a>
+    <a href="#paypay">5 · PayPay</a>
+    <a href="#more">More</a>
+  </nav>
+
+  <section>
+    <h2 id="install">1 · Install on your iPhone</h2>
+    <ol>
+      <li>Open this site in <b>Safari</b>.</li>
+      <li>Tap <b>Share</b> → <b>Add to Home Screen</b> → <b>Add</b>.</li>
+      <li>From now on, open YenBaht from the home-screen icon.</li>
+    </ol>
+    <div class="tip">The home-screen app and a Safari tab keep <b>separate</b> data. Always use the icon.</div>
+  </section>
+
+  <section>
+    <h2 id="use">2 · Daily use</h2>
+    <ul>
+      <li><b>Cash expense:</b> type the amount → tap a category. That's it (2 taps). Undo appears for a few seconds.</li>
+      <li><b>Wallet:</b> picked by your time zone (Japan → ¥, Thailand → ฿). Tap a wallet card to switch.</li>
+      <li><b>Another day:</b> tap <b>Today</b> before saving.</li>
+      <li><b>Income</b> or <b>Transfer</b> (e.g. sending yen home as baht): tap the switch above the amount.</li>
+      <li><b>Starting balance:</b> ⚙ Settings → Balances → type what you have now → <b>Set</b>.</li>
+      <li><b>Fix a record:</b> History → tap it.</li>
+      <li>Hold <b>⌫</b> to clear the amount.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2 id="sheet">3 · Connect a Google Sheet <small>One time, about 5 minutes. Easiest on a computer.</small></h2>
+    <p>This is the "mailbox" your iPhone Shortcut drops payments into. It's also a backup of everything you record.</p>
+    <ol>
+      <li>Open <a href="https://sheets.new" target="_blank" rel="noopener">sheets.new</a> (signed in to Google). Name it <b>YenBaht</b>.</li>
+      <li>Menu <b>Extensions → Apps Script</b>.</li>
+      <li>Delete everything in the editor and paste the code below.</li>
+      <li>On the line <code>const SECRET = 'change-me';</code> replace <code>change-me</code> with your own secret word (e.g. <code>mango-tokyo-42</code>). Save (<kbd>Ctrl</kbd>+<kbd>S</kbd>).</li>
+      <li><b>Deploy → New deployment</b>. Click the ⚙ next to "Select type" → <b>Web app</b>.<br>
+        Execute as: <b>Me</b>. Who has access: <b>Anyone</b>. → <b>Deploy</b>.</li>
+      <li><b>Authorize access</b> → choose your account. Google says <i>"Google hasn't verified this app"</i> — it's your own script, so click <b>Advanced → Go to … (unsafe) → Allow</b>.</li>
+      <li>Copy the <b>Web app URL</b> (ends with <code>/exec</code>). Send it to your iPhone (LINE Keep, or email yourself).</li>
+      <li>On the iPhone: YenBaht → ⚙ → <b>Auto-record &amp; backup</b> → paste the URL, type your secret word → <b>Connect</b>. You should see <b>✓ Connected</b>.</li>
+      <li>Tap <b>Send test</b>. Close Settings — a ¥1 "Test payment" is waiting to be sorted. Delete it.</li>
+    </ol>
+    <div class="tip">"Anyone" is needed because a Shortcut can't sign in to Google. Your secret word is what keeps others out — don't share the Shortcut URL.</div>
+    <div class="row"><button class="copy" id="copy-code">Copy the code</button><span class="muted" id="copy-msg"></span></div>
+    <pre id="code">Loading…</pre>
+    <p class="muted">Changed the code later? Use <b>Deploy → Manage deployments → ✎ → Version: New version</b> so the URL stays the same.</p>
+  </section>
+
+  <section>
+    <h2 id="shortcut">4 · Auto-record Suica &amp; Apple Pay <small>On the iPhone, in the Shortcuts app. About 3 minutes.</small></h2>
+    <p>Every time you tap Suica (or any Apple Pay card), the iPhone sends the amount and shop name to your sheet. YenBaht picks them up when you open it.</p>
+    <ol>
+      <li>In YenBaht: ⚙ → <b>Copy Shortcut URL</b>.</li>
+      <li>Open <b>Shortcuts</b> → <b>Automation</b> tab → <b>+</b> (New Automation).</li>
+      <li>Choose <b>Transaction</b> (Wallet).</li>
+      <li>Under <b>Card</b>, pick <b>Suica</b> (and any other Apple Pay cards you pay with). Leave the other options as they are. Select <b>Run Immediately</b> → <b>Next</b>.</li>
+      <li>Tap <b>New Blank Automation</b>, then <b>Add Action</b> and search for <b>Get Contents of URL</b>.</li>
+      <li>Tap the blue <b>URL</b> placeholder and paste the Shortcut URL.</li>
+      <li>Tap the <b>›</b> on the action to show more: set <b>Method</b> to <b>POST</b> and <b>Request Body</b> to <b>JSON</b>.</li>
+      <li>Tap <b>Add new field → Text</b> three times and fill them in:
+        <table class="table">
+          <tr><th>Key</th><th>Value (tap the box, then pick from the variable bar)</th></tr>
+          <tr><td><code>amount</code></td><td><b>Shortcut Input</b> → tap it again → <b>Amount</b></td></tr>
+          <tr><td><code>merchant</code></td><td><b>Shortcut Input</b> → <b>Merchant</b></td></tr>
+          <tr><td><code>card</code></td><td><b>Shortcut Input</b> → <b>Card or Pass</b> (or <b>Name</b>)</td></tr>
+        </table>
+      </li>
+      <li>Tap <b>Done</b>.</li>
+    </ol>
+    <h3>Check it works</h3>
+    <p>Pay with Suica (a drink from a vending machine is fine). Open YenBaht — you'll see <b>"1 auto-recorded payment needs sorting"</b>. Tap it, tap a category. Next time the same shop is sorted for you automatically, and train/bus fares go straight to <b>Transport</b>.</p>
+    <div class="tip">If nothing arrives: Settings app → <b>Mobile Service</b> (Cellular) → make sure <b>Wallet</b> is allowed to use mobile data. Some payments arrive without an amount (an iOS quirk) — the app asks you to type it or delete it.</div>
+  </section>
+
+  <section>
+    <h2 id="paypay">5 · PayPay <small>About once a month, ~6 taps</small></h2>
+    <p>PayPay doesn't let other apps read your payments, but it can export a month of history as a CSV file.</p>
+    <ol>
+      <li>In <b>PayPay</b>, open your <b>取引履歴</b> (transaction history) and look for the <b>download / CSV</b> option. Pick a month and request it.</li>
+      <li>When it's ready (PayPay keeps it for 24 hours), download it and <b>Save to Files</b>.</li>
+      <li>In YenBaht: ⚙ → <b>Import PayPay history (CSV)</b> → pick the file → check the list → <b>Import</b>.</li>
+    </ol>
+    <p class="muted">Menu names can vary between PayPay versions. Importing the same month twice is safe — duplicates are skipped. PayPay top-ups (チャージ) are skipped because that's just moving your own money. If the file isn't recognised, the app shows its first line so the importer can be adjusted.</p>
+  </section>
+
+  <section>
+    <h2 id="more">More (optional)</h2>
+    <h3>Log PayPay or a Thai bank app right after you pay</h3>
+    <p>Instead of the monthly CSV, a Shortcut can pop up "How much?" every time you close the app:</p>
+    <ol>
+      <li>Shortcuts → Automation → <b>+</b> → <b>App</b> → choose <b>PayPay</b> (or K PLUS, SCB EASY…) → <b>Is Closed</b> → <b>Run Immediately</b>.</li>
+      <li>Add action <b>Ask for Input</b> → Input Type: <b>Number</b>, prompt "How much?".</li>
+      <li>Add <b>Get Contents of URL</b> with the same Shortcut URL, POST, JSON, fields: <code>amount</code> = <b>Provided Input</b>, <code>merchant</code> = <code>PayPay</code>, and for Thai apps also <code>wallet</code> = <code>THB</code>.</li>
+    </ol>
+    <p class="muted">Pick one method for PayPay — using both the pop-up and the CSV import records each payment twice. Cancel the pop-up when you only checked your balance.</p>
+    <h3>Backup</h3>
+    <p>With the Google Sheet connected, every record is copied there automatically. You can also use ⚙ → <b>Export backup</b> any time.</p>
+  </section>
+</div>
+<script>
+  fetch('google-apps-script.txt').then(r => r.text()).then(t => { document.getElementById('code').textContent = t; })
+    .catch(() => { document.getElementById('code').textContent = 'Could not load the code. Open google-apps-script.txt instead.'; });
+  document.getElementById('copy-code').onclick = async () => {
+    const t = document.getElementById('code').textContent;
+    const msg = document.getElementById('copy-msg');
+    try { await navigator.clipboard.writeText(t); msg.textContent = 'Copied ✓'; }
+    catch (e) {
+      const r = document.createRange(); r.selectNodeContents(document.getElementById('code'));
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+      msg.textContent = 'Selected — press Ctrl+C';
+    }
+  };
+</script>
+</body>
+</html>
